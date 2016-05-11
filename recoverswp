@@ -1,0 +1,68 @@
+#! /usr/bin/env ruby 
+require 'optparse'
+require 'find'
+
+class RecoverAll
+
+  def initialize 
+    @usage_str = 'Usage: recvall [options] DIRECTORY'
+  end
+
+  def error(str)
+    puts "Error: #{str}", @usage_str
+    exit
+  end
+
+  def main(args)
+    options = []
+    reg = Regexp.new('^\.\/[^\/]*\.swp$')
+
+    OptionParser.new do |opts|
+      opts.banner = @usage_str
+
+      opts.on("-r","Run recursively") do 
+        options << :recursive
+      end
+
+      opts.on("-n","--norecover","Search for swp files only (don't recover)") do
+        options << :norecover
+      end
+
+      opts.on("-h","--help","Print this help") do
+        puts opts
+        exit
+      end
+    end.parse!(args)
+
+    # check argument[s]
+    error "Wrong # of arguments" if args.length != 1
+    dir = args[0]
+    error "File must be a valid directory" if !File.directory?(dir)
+
+    # -r option
+    reg = Regexp.new('.*\.swp$') if options.include?(:recursive)
+
+    swap_files = Find.find(dir).select{|path| reg =~ path}
+    puts "#{swap_files.length} files found."
+
+    # -n option
+    if options.include?(:norecover)
+      puts swap_files
+    else
+
+      swap_files.each do |swap_file|
+        if (system("vim -r #{swap_file} -c wq && rm #{swap_file}"))
+          puts "#{swap_file} recovered."
+        else 
+          puts "#{swap_file} failed to recover."
+        end
+      end
+
+    end
+    puts 'done.'
+  end
+end
+
+# --- start here
+RecoverAll.new.main(ARGV)
+
